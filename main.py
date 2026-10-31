@@ -10,6 +10,7 @@ from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.responses import JSONResponse
 from mcp.server.fastmcp import FastMCP
 from starlette.types import ASGIApp, Receive, Scope, Send
+from mcp.server.transport_security import TransportSecuritySettings
 
 BASE = "https://financialmodelingprep.com/stable"
 PUBLIC_URL = "https://fmp-api-production.up.railway.app"
@@ -51,7 +52,19 @@ async def request_fmp(endpoint: str, params: dict):
     return result
 
 
-mcp = FastMCP("FMP Stock Research", streamable_http_path="/", stateless_http=True, json_response=True)
+mcp = FastMCP(
+    "FMP Stock Research",
+    streamable_http_path="/",
+    stateless_http=True,
+    json_response=True,
+    transport_security=TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=[
+            "fmp-api-production.up.railway.app",
+            "fmp-api-production.up.railway.app:*",
+        ],
+    ),
+)
 
 
 @mcp.tool()
