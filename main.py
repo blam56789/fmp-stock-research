@@ -132,8 +132,20 @@ def protected_resource_metadata():
     return {"resource": AUDIENCE, "authorization_servers": [ISSUER], "bearer_methods_supported": ["header"], "scopes_supported": ["openid", "profile", "email", "read:stocks"]}
 
 
-api.mount("/mcp", mcp.streamable_http_app())
+# Route /mcp directly without a 307 redirect
+# Serve the MCP application directly at /mcp
+# without redirecting to /mcp/
+mcp_asgi = mcp.streamable_http_app()
 
+class MCPPathAdapter:
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http" and scope.get("path") == "/mcp":
+            scope = dict(scope)
+            scope["path"] = "/mcp/"
+            scope["raw_path"] = b"/mcp/"
+        await api(scope, receive, send)
+
+api.mount("/mcp", mcp_asgi)
 
 class MCPAuthMiddleware:
     def __init__(self, app: ASGIApp):
@@ -164,5 +176,5 @@ class MCPAuthMiddleware:
         await self.app(scope, receive, send)
 
 
-app = MCPAuthMiddleware(api)
+app = MCPAuthMiddleware(MCPPathAdapter())
 
