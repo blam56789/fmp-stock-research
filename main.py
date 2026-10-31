@@ -129,7 +129,7 @@ async def history(symbol: str, start: date = Query(...), end: date = Query(...),
 @api.get("/.well-known/oauth-protected-resource")
 @api.get("/.well-known/oauth-protected-resource/mcp")
 def protected_resource_metadata():
-    return {"resource": AUDIENCE, "authorization_servers": [ISSUER], "bearer_methods_supported": ["header"], "scopes_supported": ["openid", "profile", "email"]}
+    return {"resource": AUDIENCE, "authorization_servers": [ISSUER], "bearer_methods_supported": ["header"], "scopes_supported": ["openid", "profile", "email", "read:stocks"]}
 
 
 api.mount("/mcp", mcp.streamable_http_app())
