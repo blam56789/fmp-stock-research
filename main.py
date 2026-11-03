@@ -83,6 +83,22 @@ async def historical_prices(symbol: str, start: str, end: str) -> dict:
     return {"symbol": ticker, "data": await request_fmp("historical-price-eod/full", {"symbol": ticker, "from": start, "to": end})}
 
 
+
+@mcp.tool()
+async def dividend_adjusted_prices(symbol: str, start: str, end: str) -> dict:
+    """Get split- and dividend-adjusted daily prices for total-return backtests. Dates YYYY-MM-DD, maximum 3650 days."""
+    a, b = date.fromisoformat(start), date.fromisoformat(end)
+    if b < a or (b - a).days > 3650:
+        raise ValueError("Invalid date range")
+    ticker = validate_symbol(symbol)
+    data = await request_fmp("historical-price-eod/dividend-adjusted", {"symbol": ticker, "from": start, "to": end})
+    if not isinstance(data, list) or not data:
+        raise RuntimeError("No dividend-adjusted price history returned; check FMP subscription access and date range")
+    if not all(isinstance(row, dict) and row.get("date") and (row.get("adjClose") is not None or row.get("close") is not None) for row in data):
+        raise RuntimeError("Unexpected dividend-adjusted history response; inspect upstream data fields")
+    return {"symbol": ticker, "price_basis": "dividend_and_split_adjusted", "data": data}
+
+
 @mcp.tool()
 async def income_statements(symbol: str, period: str = "annual", limit: int = 5) -> dict:
     """Retrieve company income statements. Period is annual or quarter; limit 1-10."""
