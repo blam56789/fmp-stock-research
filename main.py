@@ -94,7 +94,7 @@ async def dividend_adjusted_prices(symbol: str, start: str, end: str) -> dict:
     data = await request_fmp("historical-price-eod/dividend-adjusted", {"symbol": ticker, "from": start, "to": end})
     if not isinstance(data, list) or not data:
         raise RuntimeError("No dividend-adjusted price history returned; check FMP subscription access and date range")
-    if not all(isinstance(row, dict) and row.get("date") and (row.get("adjClose") is not None or row.get("close") is not None) for row in data):
+    if not all(isinstance(row, dict) and row.get("date") and (isinstance(row.get("adjClose"), (int, float)) and row["adjClose"] > 0) for row in data):
         raise RuntimeError("Unexpected dividend-adjusted history response; inspect upstream data fields")
     return {"symbol": ticker, "price_basis": "dividend_and_split_adjusted", "data": data}
 
@@ -153,6 +153,20 @@ async def history(symbol: str, start: date = Query(...), end: date = Query(...),
         raise HTTPException(400, "Invalid symbol")
     except RuntimeError:
         raise HTTPException(502, "Upstream FMP request failed")
+
+
+@api.get("/history-adjusted/{symbol}")
+async def history_adjusted(symbol: str, start: date = Query(...), end: date = Query(...), authorization: Optional[str] = Header(None)):
+    """Return dividend- and split-adjusted daily prices."""
+    authorize_service(authorization)
+    if end < start or (end - start).days > 3650:
+        raise HTTPException(400, "Invalid date range")
+    try:
+        return await dividend_adjusted_prices(symbol, start.isoformat(), end.isoformat())
+    except ValueError:
+        raise HTTPException(400, "Invalid symbol or date range")
+    except RuntimeError:
+        raise HTTPException(502, "Dividend-adjusted FMP data unavailable or invalid")
 
 
 @api.get("/.well-known/oauth-protected-resource")
