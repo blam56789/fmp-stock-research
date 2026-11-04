@@ -132,6 +132,19 @@ async def earnings_calendar(start: str, end: str, symbol: str = "") -> dict:
     return {"from": start, "to": end, "symbol": symbol.upper() if symbol else None, "data": data}
 
 
+
+@mcp.tool()
+async def historical_earnings(symbol: str, limit: int = 100) -> dict:
+    """Test ticker-based FMP earnings report history, including announcement dates. Limit 1-1000; historical access depends on subscription."""
+    ticker = validate_symbol(symbol)
+    if not 1 <= limit <= 1000:
+        raise ValueError("Invalid limit; must be between 1 and 1000")
+    data = await request_fmp("earnings", {"symbol": ticker, "limit": limit})
+    if not isinstance(data, list):
+        raise RuntimeError("Unexpected FMP ticker earnings response; check endpoint and plan access")
+    return {"symbol": ticker, "endpoint": "stable/earnings", "count": len(data), "data": data}
+
+
 @mcp.tool()
 async def income_statements(symbol: str, period: str = "annual", limit: int = 5) -> dict:
     """Retrieve company income statements. Period is annual or quarter; limit 1-10."""
