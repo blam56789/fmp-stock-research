@@ -100,6 +100,24 @@ async def dividend_adjusted_prices(symbol: str, start: str, end: str) -> dict:
 
 
 @mcp.tool()
+async def historical_volume(symbol: str, start: str, end: str) -> dict:
+    """Get daily trading volume and OHLC prices for a ticker; date range maximum 3650 days. Volume is share count, not dollar volume."""
+    a, b = date.fromisoformat(start), date.fromisoformat(end)
+    if b < a or (b - a).days > 3650:
+        raise ValueError("Invalid date range")
+    ticker = validate_symbol(symbol)
+    data = await request_fmp("historical-price-eod/full", {"symbol": ticker, "from": start, "to": end})
+    if not isinstance(data, list) or not data:
+        raise RuntimeError("No historical volume data returned; check subscription and date range")
+    rows = []
+    for row in data:
+        if not isinstance(row, dict) or not row.get("date") or not isinstance(row.get("volume"), (int, float)):
+            raise RuntimeError("FMP historical price response missing date or volume")
+        rows.append({"date": row["date"], "volume": row["volume"], "open": row.get("open"), "high": row.get("high"), "low": row.get("low"), "close": row.get("close")})
+    return {"symbol": ticker, "volume_unit": "shares", "data": rows}
+
+
+@mcp.tool()
 async def earnings_calendar(start: str, end: str, symbol: str = "") -> dict:
     """Retrieve FMP earnings announcement dates in a window of up to 90 days. Optional symbol filter. Historical availability depends on the FMP subscription; announcement time may be unavailable."""
     a, b = date.fromisoformat(start), date.fromisoformat(end)
