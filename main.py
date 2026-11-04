@@ -100,6 +100,21 @@ async def dividend_adjusted_prices(symbol: str, start: str, end: str) -> dict:
 
 
 @mcp.tool()
+async def earnings_calendar(start: str, end: str, symbol: str = "") -> dict:
+    """Retrieve FMP earnings announcement dates in a window of up to 90 days. Optional symbol filter. Historical availability depends on the FMP subscription; announcement time may be unavailable."""
+    a, b = date.fromisoformat(start), date.fromisoformat(end)
+    if b < a or (b - a).days > 90:
+        raise ValueError("Invalid earnings calendar date range; maximum 90 days")
+    data = await request_fmp("earnings-calendar", {"from": start, "to": end})
+    if not isinstance(data, list):
+        raise RuntimeError("Unexpected FMP earnings calendar response; check plan access")
+    if symbol:
+        ticker = validate_symbol(symbol)
+        data = [row for row in data if isinstance(row, dict) and str(row.get("symbol", "")).upper() == ticker]
+    return {"from": start, "to": end, "symbol": symbol.upper() if symbol else None, "data": data}
+
+
+@mcp.tool()
 async def income_statements(symbol: str, period: str = "annual", limit: int = 5) -> dict:
     """Retrieve company income statements. Period is annual or quarter; limit 1-10."""
     if period not in ("annual", "quarter") or not 1 <= limit <= 10:
