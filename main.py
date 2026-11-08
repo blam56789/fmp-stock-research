@@ -68,6 +68,18 @@ mcp = FastMCP(
 
 
 @mcp.tool()
+async def company_screener(market_cap_min: int = 5000000000, limit: int = 1000, offset: int = 0) -> dict:
+    """Screen US-listed active stocks by minimum market capitalization. Page with limit and offset; FMP plan access required."""
+    if market_cap_min < 0 or not 1 <= limit <= 1000 or offset < 0:
+        raise ValueError("Invalid screener parameters")
+    data = await request_fmp("company-screener", {"marketCapMoreThan": market_cap_min, "country": "US", "isActivelyTrading": "true", "limit": limit, "offset": offset})
+    if not isinstance(data, list):
+        raise RuntimeError("Unexpected FMP company screener response; verify subscription access")
+    rows = [r for r in data if isinstance(r, dict) and isinstance(r.get("marketCap"), (int, float)) and r["marketCap"] > market_cap_min]
+    return {"market_cap_min": market_cap_min, "limit": limit, "offset": offset, "count": len(rows), "data": rows}
+
+
+@mcp.tool()
 async def stock_quote(symbol: str) -> dict:
     """Get the latest available stock quote for a ticker such as MSFT or NVDA."""
     return {"symbol": validate_symbol(symbol), "data": await request_fmp("quote", {"symbol": validate_symbol(symbol)})}
